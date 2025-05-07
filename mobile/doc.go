@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the Elastos.ELA.SideChain.ECO library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package geth contains the simplified mobile APIs to Elastos.ELA.SideChain.ECO.
+// Package eco contains the simplified mobile APIs to Elastos.ELA.SideChain.ECO.
 //
 // The scope of this package is *not* to allow writing a custom Ethereum client
 // with pieces plucked from Elastos.ELA.SideChain.ECO, rather to allow writing native dapps on

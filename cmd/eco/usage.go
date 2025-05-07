@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Elastos.ELA.SideChain.ECO. If not, see <http://www.gnu.org/licenses/>.
 
-// Contains the geth command usage template and generator.
+// Contains the eco command usage template and generator.
 
 package main
 
