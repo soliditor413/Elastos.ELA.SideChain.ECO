@@ -830,7 +830,7 @@ var (
 		Name:  "developer.fee.contract",
 		Usage: "configue developer fee contract address",
 		Value: &cli.StringSlice{
-			"0x0B54BFD3D1cd46DBa9e3d915d685aDd95F60822f",
+			"0xe6F1aC2eA7488C40c11ED65Cc9b9a23D3628834e",
 		},
 	}
 )
@@ -1640,6 +1640,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 12343
 		}
+		cfg.DeveloperFeeContract = []string{"0x0B54BFD3D1cd46DBa9e3d915d685aDd95F60822f"}
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
 		if !ctx.GlobalIsSet(DataDirFlag.Name) {
 			cfg.EvilSignersJournalDir = filepath.Join(node.DefaultDataDir(), "testnet", "eco")
