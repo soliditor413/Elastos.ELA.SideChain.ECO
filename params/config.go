@@ -38,11 +38,18 @@ func newUint64(val uint64) *uint64 { return &val }
 
 // TrustedCheckpoints associates each known checkpoint with the genesis hash of
 // the chain it belongs to.
+//var TrustedCheckpoints = map[common.Hash]*TrustedCheckpoint{
+//	MainnetGenesisHash: MainnetTrustedCheckpoint,
+//	TestnetGenesisHash: TestnetTrustedCheckpoint,
+//	RinkebyGenesisHash: RinkebyTrustedCheckpoint,
+//	GoerliGenesisHash:  GoerliTrustedCheckpoint,
+//}
+
 var TrustedCheckpoints = map[common.Hash]*TrustedCheckpoint{
-	MainnetGenesisHash: MainnetTrustedCheckpoint,
-	TestnetGenesisHash: TestnetTrustedCheckpoint,
-	RinkebyGenesisHash: RinkebyTrustedCheckpoint,
-	GoerliGenesisHash:  GoerliTrustedCheckpoint,
+	MainnetGenesisHash: nil,
+	TestnetGenesisHash: nil,
+	RinkebyGenesisHash: nil,
+	GoerliGenesisHash:  nil,
 }
 
 // CheckpointOracles associates each known checkpoint oracles with the genesis hash of
@@ -108,10 +115,10 @@ var (
 
 	// MainnetTrustedCheckpoint contains the light client trusted checkpoint for the main network.
 	MainnetTrustedCheckpoint = &TrustedCheckpoint{
-		SectionIndex: 0,
-		SectionHead:  common.HexToHash("0x3ae62bce86c0e57c0f1f121d1c59d87d82f2420481564c92242ed75318158354"),
-		CHTRoot:      common.HexToHash("0x1409d0dee719792d5f0dc645332c30190251cc7556520982cb3f68522ff71939"),
-		BloomRoot:    common.HexToHash("0x05650f19cd3eefce2214f5759d005a275743fa0049e04591dd40f5b2578402a1"),
+		SectionIndex: 2,
+		SectionHead:  common.HexToHash("0xd1690c0eee830b5e6faa55bd6c17e4d4afb42c8fc8b9f4667ab1372dbf9bc228"),
+		CHTRoot:      common.HexToHash("0x3f4ace650faee9c952b42e5f63ca30a22140dba6dc186b2961ea057c4cd65f54"),
+		BloomRoot:    common.HexToHash("0x96cb0e8071afe8fd268ab0f0f61eaa7c6f9ad647a681cb0893f31c62fb91c9c8"),
 	}
 
 	// MainnetCheckpointOracle contains a set of configs for the main network oracle.

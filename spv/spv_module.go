@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/elastos/Elastos.ELA.SideChain.ECO/core"
 	"math/big"
 	"path/filepath"
 	"strings"
@@ -732,7 +731,8 @@ func SendTransaction(from ethCommon.Address, elaTx string, fee *big.Int) (err er
 	hash, err := ipcClient.SendPublicTransaction(context.Background(), callmsg)
 	if err != nil {
 		log.Info("Cross chain Transaction failed", "elaTx", elaTx, "ethTh", hash.String(), "gasLimit", gasLimit, "price", price.String(), "error ", err)
-		if err.Error() == core.ErrLowGasPrice.Error() {
+
+		if err.Error() == "gasPrice too low" {
 			OnTx2Failed(elaTx)
 		}
 		return err, true
