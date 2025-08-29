@@ -56,6 +56,13 @@ const (
 	defaultTraceReexec = uint64(128)
 )
 
+// TraceCallConfig is the config for traceCall API. It holds one more
+// field to override the state for tracing.
+type TraceCallConfig struct {
+	TraceConfig
+	TxIndex int
+}
+
 // TraceConfig holds extra parameters to trace functions.
 type TraceConfig struct {
 	*logger.Config
@@ -711,6 +718,63 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
 	return statedb, nil
+}
+
+// TraceCall lets you trace a given eth_call. It collects the structured logs
+// created during the execution of EVM if the given transaction was added on
+// top of the provided block and returns them as a JSON object.
+// If no transaction index is specified, the trace will be conducted on the state
+// after executing the specified block. However, if a transaction index is provided,
+// the trace will be conducted on the state after executing the specified transaction
+// within the specified block.
+func (api *PrivateDebugAPI) TraceCall(ctx context.Context, tx types.Transaction, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
+	// Try to retrieve the specified block
+	var (
+		err     error
+		block   *types.Block
+		statedb *state.StateDB
+	)
+	if hash, ok := blockNrOrHash.Hash(); ok {
+		block = api.eth.blockchain.GetBlockByHash(hash)
+	} else if number, ok := blockNrOrHash.Number(); ok {
+		if number == rpc.PendingBlockNumber {
+			// We don't have access to the miner here. For tracing 'future' transactions,
+			// it can be done with block- and state-overrides instead, which offers
+			// more flexibility and stability than trying to trace on 'pending', since
+			// the contents of 'pending' is unstable and probably not a true representation
+			// of what the next actual block is likely to contain.
+			return nil, errors.New("tracing on top of pending is not supported")
+		}
+		block = api.eth.blockchain.GetBlockByNumber(uint64(number.Int64()))
+	} else {
+		return nil, errors.New("invalid arguments; neither block nor hash specified")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	statedb, err = api.eth.blockchain.StateAt(block.Root())
+	if err != nil {
+		return nil, err
+	}
+	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
+	msg, err := tx.AsMessage(signer)
+	if err != nil {
+		return nil, err
+	}
+	traceConfig := &TraceConfig{}
+	txIndex := 0
+	if config != nil {
+		traceConfig = &(config.TraceConfig)
+		txIndex = config.TxIndex
+	}
+	txContext := &tracers.Context{
+		BlockHash: block.Hash(),
+		TxIndex:   txIndex,
+		TxHash:    tx.Hash(),
+	}
+
+	return api.traceTx(ctx, msg, txContext, vm.Context{}, statedb, traceConfig)
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM
