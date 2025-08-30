@@ -1294,21 +1294,6 @@ func (s *PublicBlockChainAPI) rpcMarshalBlock(b *types.Block, inclTx bool, fullT
 	return fields, err
 }
 
-// TransactionArgs represents the arguments to construct a new transaction
-// or a message call.
-type TransactionArgs struct {
-	From     *common.Address `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      *hexutil.Uint64 `json:"gas"`
-	GasPrice *hexutil.Big    `json:"gasPrice"`
-	Value    *hexutil.Big    `json:"value"`
-	Nonce    *hexutil.Uint64 `json:"nonce"`
-
-	Data *hexutil.Bytes `json:"data"`
-
-	ChainID *hexutil.Big `json:"chainId,omitempty"`
-}
-
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
@@ -1586,6 +1571,50 @@ type SendTxArgs struct {
 	Input *hexutil.Bytes `json:"input"`
 }
 
+func (args *SendTxArgs) ToTransaction() *types.Transaction {
+	return args.toTransaction()
+}
+
+func (args *SendTxArgs) SetDefaults(ctx context.Context, b Backend) error {
+	return args.setDefaults(ctx, b)
+}
+
+// ToMessage converts the transaction arguments to the Message type used by the
+// core evm. This method is used in calls and traces that do not require a real
+// live transaction.
+// Assumes that fields are not nil, i.e. setDefaults or CallDefaults has been called.
+func (args *SendTxArgs) ToMessage(baseFee *big.Int, skipNonceCheck, skipEoACheck bool) core.Message {
+	var (
+		gasPrice *big.Int
+	)
+	if args.GasPrice != nil {
+		// User specified the legacy gas field, convert to 1559 gas typing
+		gasPrice = args.GasPrice.ToInt()
+	} else {
+		// Backfill the legacy gasPrice for EVM execution, unless we're all zeroes
+		gasPrice = big.NewInt(defaultGasPrice)
+	}
+	var accessList types.AccessList
+	var input []byte
+	if args.Data != nil {
+		input = *args.Data
+	} else if args.Input != nil {
+		input = *args.Input
+	}
+	msg := types.NewMessage(
+		args.From,
+		args.To,
+		uint64(*args.Nonce),
+		args.Value.ToInt(),
+		uint64(*args.Gas),
+		gasPrice,
+		input,
+		!skipNonceCheck,
+		accessList,
+	)
+	return msg
+}
+
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.GasPrice == nil {
@@ -1641,7 +1670,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			return err
 		}
 		args.Gas = &estimated
-		log.Trace("Estimate gas usage automatically", "gas", args.Gas)
+		log.Info("Estimate gas usage automatically", "gas", args.Gas)
 	}
 	return nil
 }

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/internal/ethapi"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"runtime"
 	"sync"
@@ -727,7 +728,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 // after executing the specified block. However, if a transaction index is provided,
 // the trace will be conducted on the state after executing the specified transaction
 // within the specified block.
-func (api *PrivateDebugAPI) TraceCall(ctx context.Context, tx types.Transaction, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
+func (api *PrivateDebugAPI) TraceCall(ctx context.Context, txArgs ethapi.SendTxArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
 	// Try to retrieve the specified block
 	var (
 		err     error
@@ -756,15 +757,21 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, tx types.Transaction,
 		return nil, err
 	}
 
-	statedb, err = api.eth.blockchain.StateAt(block.Root())
+	reexec := defaultTraceReexec
+	if config != nil && config.Reexec != nil {
+		reexec = *config.Reexec
+	}
+	statedb, err = api.computeStateDB(block, reexec)
+	//statedb, header, err := api.eth.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
-	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
-	msg, err := tx.AsMessage(signer)
+	err = txArgs.SetDefaults(ctx, api.eth.APIBackend)
 	if err != nil {
 		return nil, err
 	}
+	tx := txArgs.ToTransaction()
+	msg := txArgs.ToMessage(big.NewInt(0), true, true)
 	traceConfig := &TraceConfig{}
 	txIndex := 0
 	if config != nil {
@@ -776,8 +783,8 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, tx types.Transaction,
 		TxIndex:   txIndex,
 		TxHash:    tx.Hash(),
 	}
-
-	return api.traceTx(ctx, msg, txContext, vm.Context{}, statedb, traceConfig)
+	vmCtx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
+	return api.traceTx(ctx, msg, txContext, vmCtx, statedb, traceConfig)
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM
@@ -843,7 +850,6 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	}
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(blockCtx, statedb, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
-
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
