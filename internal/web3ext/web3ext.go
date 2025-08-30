@@ -487,7 +487,7 @@ web3._extend({
 			name: 'traceCall',
 			call: 'debug_traceCall',
 			params: 3,
-			inputFormatter: [formatters.inputTransactionFormatter, null, null]
+			inputFormatter: [null, null, null]
 		}),
 		new web3._extend.Method({
 			name: 'preimage',

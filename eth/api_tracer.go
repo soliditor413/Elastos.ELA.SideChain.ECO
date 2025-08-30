@@ -745,7 +745,10 @@ func (api *PrivateDebugAPI) TraceCall(ctx context.Context, tx types.Transaction,
 			// of what the next actual block is likely to contain.
 			return nil, errors.New("tracing on top of pending is not supported")
 		}
-		block = api.eth.blockchain.GetBlockByNumber(uint64(number.Int64()))
+		block, err = api.eth.APIBackend.BlockByNumber(ctx, number)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
