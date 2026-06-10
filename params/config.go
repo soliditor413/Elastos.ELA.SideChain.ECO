@@ -103,6 +103,20 @@ var (
 				"02d36ad9ac8246b781941e6366b1deb0e36403a3bee7ad018a5fa2d90df76401d9",
 				"034aac70edd1721813c12264deb0acc89f316b30cf96d2c0a4c4acd481e458dba3",
 			},
+			BackupProducers: []string{
+				"03244cbfdbee063261f9285fe028d8841cd5a4c4617fa285fa7a95dfedd20c3e5e",
+				"03574acf5b9886eacdbfdeda46deabea107d1bfec11a400b0fdf1d79475fa74e01",
+				"03830d4d3718e021289b3b0df1b0465c5cae4b403da403b1346dc42e7f0ae9461e",
+				"03364106ea544e1c1175dea1ef487b5b56aa48ae680c303ea52631e31d6e5cd438",
+				"022909c7d85c88d4d2a8091e279e5a800d2611a4f112019818fec4880a598b64e0",
+				"0213d2ad8f4a167f12dd9056dd56c47b2d688277ce909c2bc64401fce6ae9290c3",
+				"028d6bbd5965022e1e7263e65193342e43c2569f3b3c7bfa1b088122a7fb7fd925",
+				"03b21a599807f516a3e7c00f1e402ce83e72482120f33d24577be5174117a94b7c",
+				"0219accb8de9f2f2f5e12068b43552fa4a8118e223389e63585dfc10b33682133d",
+				"033cb3eb2442862d37b729b9cafc310883078930e8554b1a0f95f70d50a0061454",
+				"03e2283f3b5124bf55bbf4ea4734b493a3524d4b8d00c7b5107f52fcb235cf8069",
+				"03361e8f72aed38135aa5ae96f68a95911de6710e2a0218c820844d52c5ee13304",
+			},
 			PrintLevel:     0,
 			MaxLogsSize:    0,
 			MaxPerLogSize:  0,
@@ -175,6 +189,20 @@ var (
 				"026bba43feb19ce5859ffcf0ce9dd8b9d625130b686221da8b445fa9b8f978d7b9",
 				"02bf9e37b3db0cbe86acf76a76578c6b17b4146df101ec934a00045f7d201f06dd",
 				"03111f1247c66755d369a8c8b3a736dfd5cf464ca6735b659533cbe1268cd102a9",
+			},
+			BackupProducers: []string{
+				"03c7d53905e7005cf4d161b88c063221c6d945f18ec1f97b9beeef2606eed287d3",
+				"034e97e4ad837f3a9309a5df8bb91c93da6a99821ee69e09bfd4bfbc3d4fd956fb",
+				"03b23e0fec6d7c996fb91dd25ea3cc8d60e838b7d63801e5abff6c515138920a2b",
+				"0329fe9d384e0b7f71357c9ae6cf15ac5c4c99a45a9f5ec6060878090729c83fdf",
+				"0309fe8ccffd8a521d34cb5040efe3375223a09f5a7a19cc0b7f01bb0231777b64",
+				"02e62edba175dc9467f00000a8a16846d0667181b5be100b51d7fa038be25103b6",
+				"036a5f818f9140fc3c106c0ea9684931927c5fde550ddec2e8508a18cd8133be59",
+				"02ac52742a19063bf85004137e379e4ddc042e31232a20d0bffc5b895907df044d",
+				"0324c7529b9fae2bfd9ca7d870b858797216005e2dca34feaa1ccc4efc92084e48",
+				"024609da3226ba325d46cdda3e0ae689311ccfc1be7a665f6cbda6a468cb9741a7",
+				"0213f6e6e38cb800336baf0549821197492f79361be5f11ea8930dc4d7b95e4f69",
+				"03d0cb2f28965f3ca824a510606e5f9110adecc0bd34b9ad7f4ab6ad696b72fbd0",
 			},
 			PrintLevel:     0,
 			MaxLogsSize:    0,
@@ -496,14 +524,15 @@ func (c *CliqueConfig) String() string {
 }
 
 type PbftConfig struct {
-	Producers         []string `json:"producers"` // list of producers participating the pbft consensus.
-	Magic             uint32   `json:"magic"`     // Magic defines the magic number used in the DPoS network.
-	IPAddress         string   `json:"ip"`        // IPAddress defines the IP address for the DPoS network.
-	DPoSPort          uint16   `json:"dposport"`  // DPoSPort defines the default port for the DPoS network.
+	Producers         []string `json:"producers"`         // list of producers participating the pbft consensus.
+	BackupProducers   []string `json:"backupproducers"`   // list of backup producers used when active producers are insufficient.
+	Magic             uint32   `json:"magic"`             // Magic defines the magic number used in the DPoS network.
+	IPAddress         string   `json:"ip"`                // IPAddress defines the IP address for the DPoS network.
+	DPoSPort          uint16   `json:"dposport"`          // DPoSPort defines the default port for the DPoS network.
 	PrintLevel        uint8    `json:"printlevel"`
 	MaxLogsSize       int64    `json:"maxlogssize"`
 	MaxPerLogSize     int64    `json:"maxperlogsize"`
-	MaxNodePerHost    uint32   `json:"maxnodeperhost"` //MaxNodePerHost defines max nodes that one host can establish.
+	MaxNodePerHost    uint32   `json:"maxnodeperhost"`     //MaxNodePerHost defines max nodes that one host can establish.
 	DPoSV2StartHeight uint32   `json:"dposv2startheight"`
 	NodeVersion       string
 }

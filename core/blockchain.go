@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	mrand "math/rand"
 	"sync"
@@ -40,6 +41,7 @@ import (
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/event"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/log"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/metrics"
+	"github.com/elastos/Elastos.ELA.SideChain.ECO/p2p"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/params"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/rlp"
 	"github.com/elastos/Elastos.ELA.SideChain.ECO/trie"
@@ -145,18 +147,19 @@ type BlockChain struct {
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	hc            *HeaderChain
-	rmLogsFeed    event.Feed
-	chainFeed     event.Feed
-	chainSideFeed event.Feed
-	chainHeadFeed event.Feed
-	logsFeed      event.Feed
-	dangerousFeed event.Feed
-	blockProcFeed event.Feed
-	engineChange  event.Feed
-	smallCroFeed  event.Feed
-	scope         event.SubscriptionScope
-	genesisBlock  *types.Block
+	hc                  *HeaderChain
+	rmLogsFeed          event.Feed
+	chainFeed           event.Feed
+	chainSideFeed       event.Feed
+	chainHeadFeed       event.Feed
+	logsFeed            event.Feed
+	dangerousFeed       event.Feed
+	blockProcFeed       event.Feed
+	engineChange        event.Feed
+	smallCroFeed        event.Feed
+	defaultProducerFeed event.Feed
+	scope               event.SubscriptionScope
+	genesisBlock        *types.Block
 
 	chainmu sync.RWMutex // blockchain insertion lock
 
@@ -192,6 +195,10 @@ type BlockChain struct {
 	evilSigners *EvilSignersMap // EvilSigners contains evil signers
 	evilmu      sync.RWMutex    // evil signers lock
 	journal     *EvilJournal    // Journal of local  evilSingeerEvents to back up to disk
+
+	// Timer for tracking chain events
+	chainEventTimer *time.Timer
+	timerMutex      sync.RWMutex // Protects chainEventTimer
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -2425,6 +2432,10 @@ func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscr
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
 }
 
+func (bc *BlockChain) SubscribeStartDefaultProducersEvt(ch chan<- StartDefaultProducers) event.Subscription {
+	return bc.scope.Track(bc.defaultProducerFeed.Subscribe(ch))
+}
+
 func (bc *BlockChain) IsDangerChain() bool {
 	bc.evilmu.Lock()
 	defer bc.evilmu.Unlock()
@@ -2478,4 +2489,89 @@ func (bc *BlockChain) addEvilSingerEvents(evilEvents []*EvilSingerEvent) []error
 		bc.evilSigners = &EvilSignersMap{}
 	}
 	return bc.evilSigners.AddEvilSingerEvents(evilEvents)
+}
+
+// ResetChainEventTimer resets the chain event timer
+func (bc *BlockChain) ResetChainEventTimer() {
+	duration := 10 * time.Minute
+	resetDuration := func(delay time.Duration) {
+		bc.timerMutex.Lock()
+		defer bc.timerMutex.Unlock()
+		bc.chainEventTimer.Stop()
+		bc.chainEventTimer.Reset(delay)
+	}
+
+	if bc.chainEventTimer == nil {
+		bc.chainEventTimer = time.NewTimer(duration)
+		go func() {
+			for {
+				select {
+				case <-bc.chainEventTimer.C:
+					bc.defaultProducerFeed.Send(StartDefaultProducers{})
+					// Re-evaluate duration on each tick
+					resetDuration(duration)
+				}
+			}
+		}()
+	}
+	resetDuration(duration)
+}
+
+func (bc *BlockChain) DelayToCheckNetwork() {
+	time.Sleep(5 * time.Minute)
+	fmt.Println("delay to checkNetwork")
+	header := bc.CurrentHeader()
+	if header == nil {
+		log.Error("DelayToCheckNetwork header is nil")
+		return
+	}
+	if header.Nonce.Uint64() != math.MaxUint64 {
+		log.Info("is default producer consensus")
+		return
+	}
+	now := uint64(time.Now().Unix())
+	if now-header.Time < 10 {
+		log.Info("already produce block")
+		return
+	}
+	bc.checkNetworkConnectionsOnTimeout()
+}
+
+// checkNetworkConnectionsOnTimeout checks network connections when timer expires
+func (bc *BlockChain) checkNetworkConnectionsOnTimeout() {
+	// Get the pbft engine
+	pbftEngine := bc.Engine()
+	if pbftEngine == nil {
+		log.Warn("pbft engine is nil", "Engine", pbftEngine)
+		return
+	}
+	// Type assert to get pbft-specific methods
+	if pbft, ok := pbftEngine.(interface {
+		GetActivePeersCount() int
+		HasPeersMajorityCount() (int, bool)
+		GetAllArbiterPeersInfo() []*p2p.PeerInfo
+	}); ok {
+		if len(pbft.GetAllArbiterPeersInfo()) == 0 {
+			log.Info("Network connection check on timeout", "self is common node")
+			return
+		}
+		connectedCount, hasMajority := pbft.HasPeersMajorityCount()
+		log.Info("Network connection check on timeout",
+			"connectedCount", connectedCount,
+			"hasMajority", hasMajority)
+
+		if !hasMajority {
+			log.Warn("Insufficient network connections detected",
+				"connectedCount", connectedCount,
+				"message", "Network may be unstable or disconnected")
+			bc.defaultProducerFeed.Send(StartDefaultProducers{})
+			// Here you can add additional logic for handling insufficient connections
+			// For example: trigger reconnection, alert monitoring systems, etc.
+		} else {
+			log.Info("Network connections are sufficient",
+				"connectedCount", connectedCount)
+		}
+	} else {
+		log.Warn("PBFT engine does not support network connection checking")
+	}
 }
