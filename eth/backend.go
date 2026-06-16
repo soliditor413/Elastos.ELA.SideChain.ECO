@@ -492,6 +492,9 @@ func InitCurrentProducers(engine *pbft.Pbft, config *params.ChainConfig, current
 	if bestSpvHeight > spvHeight {
 		spvHeight = bestSpvHeight
 	}
+	if currentBlock.NumberU64() >= 6851928 { //ECO CR STOPPED HEIGHT
+		spvHeight = math.MaxUint64
+	}
 	producers, totalProducers, err := spv.GetProducers(spvHeight)
 	if err != nil {
 		log.Info("GetProducers error", "error", err, "spvHeight", spvHeight)
